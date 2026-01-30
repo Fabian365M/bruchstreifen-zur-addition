@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Interaktive Bruchstreifen – Bruchaddition</title>
+  <style>
+    :root {
+      --bg: #f7f7fb;
+      --card-bg: #ffffff;
+      --border: #d0d4e4;
+      --accent: #3b82f6;
+      --strip-height: 60px;
+      --strip1-color: #15803d; /* dunkles Grün */
+      --strip2-color: #be185d; /* dunkles Rosa */
+      --line-color: #111827;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        sans-serif;
+      background: radial-gradient(circle at top, #e0ecff 0, #f7f7fb 45%, #f7f7fb 100%);
+      color: #111827;
+    }
+
+    .app {
+      max-width: 960px;
+      margin: 2rem auto 3rem;
+      padding: 1.5rem 2rem 2rem;
+      background: var(--card-bg);
+      border-radius: 1.5rem;
+      box-shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
+    }
+
+    h1 {
+      margin: 0 0 0.5rem;
+      font-size: 1.6rem;
+      letter-spacing: 0.01em;
+    }
+
+    .subtitle {
+      margin: 0 0 1.75rem;
+      font-size: 0.95rem;
+      color: #6b7280;
+    }
+
+    .strip-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      gap: 1rem;
+      margin-bottom: 1.75rem;
+      padding: 0.85rem 1rem;
+      border-radius: 1rem;
+      background: linear-gradient(135deg, #f9fafb, #eef2ff);
+    }
+
+    .row-label {
+      flex: 0 0 70px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      padding-top: 0.4rem;
+    }
+
+    .strip-and-info {
+      flex: 1 1 260px;
+      min-width: 0;
+    }
+
+    /* Bruchstreifen jetzt eckig (kein border-radius) */
+    .fraction-strip {
+      position: relative;
+      height: var(--strip-height);
+      border-radius: 0;
+      background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
+      border: 2px solid var(--border);
+      overflow: hidden;
+      cursor: pointer;
+    }
+
+    .fraction-strip::before {
+      content: "";
+      position: absolute;
+      inset: 4px 8px;
+      border-radius: 0;
+      background: linear-gradient(90deg, rgba(255,255,255,0.7), rgba(249,250,251,0.85));
+      opacity: 0.8;
+      pointer-events: none;
+    }
+
+    .grid-layer,
+    .color-layer {
+      position: absolute;
+      inset: 0;
+    }
+
+    .grid-layer {
+      pointer-events: none;
+      z-index: 3;
+    }
+
+    .color-layer {
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    /* Deutlich stärkere Trennlinien */
+    .grid-line {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 3px;                 /* vorher 1px */
+      background: var(--line-color);
+      opacity: 0.75;
+      transform: translateX(-50%); /* zentriert auf der Position */
+    }
+
+    .color-block {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+    }
+
+    /* Farben je Bruchstreifen */
+    .strip-row[data-strip-index="0"] .color-block {
+      background: var(--strip1-color);
+      opacity: 0.75;
+    }
+
+    .strip-row[data-strip-index="1"] .color-block {
+      background: var(--strip2-color);
+      opacity: 0.8;
+    }
+
+    .controls {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      margin-left: auto;
+    }
+
+    .step-btn {
+      width: 2.1rem;
+      height: 2.1rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: #ffffff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: transform 0.05s ease-out, box-shadow 0.05s ease-out,
+        border-color 0.05s ease-out, background 0.05s ease-out;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.1);
+    }
+
+    .step-btn:hover {
+      border-color: var(--accent);
+      box-shadow: 0 3px 6px rgba(37, 99, 235, 0.18);
+    }
+
+    .step-btn:active {
+      transform: translateY(1px) scale(0.98);
+      box-shadow: 0 0 0 rgba(0,0,0,0);
+      background: #eff6ff;
+    }
+
+    .division-input {
+      width: 3.5rem;
+      padding: 0.3rem 0.4rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      text-align: center;
+      font-size: 0.9rem;
+      font-variant-numeric: tabular-nums;
+      outline: none;
+      transition: border-color 0.08s ease-out, box-shadow 0.08s ease-out;
+    }
+
+    .division-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(59,130,246,0.35);
+    }
+
+    .hint {
+      font-size: 0.85rem;
+      color: #4b5563;
+      margin-top: 0.5rem;
+      line-height: 1.4;
+      white-space: pre-line;
+    }
+
+    @media (max-width: 720px) {
+      .strip-row {
+        padding: 0.8rem 0.9rem 1rem;
+      }
+
+      .row-label {
+        flex-basis: 100%;
+        padding-top: 0;
+      }
+
+      .controls {
+        margin-left: 0;
+      }
+
+      .fraction-strip {
+        height: 52px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1>Interaktive Bruchstreifen zur Bruchaddition</h1>
+    <p class="subtitle">
+      Klicke / tippe auf Bereiche der Bruchstreifen, um Teilflächen zu färben.
+      Mit den Pfeilen rechts stellst du die Anzahl der Unterteilungen (max. 30) ein.
+      Die gefärbte Fläche bleibt an derselben Stelle, auch wenn du die Einteilung änderst.
+    </p>
+
+    <!-- Erster Bruchstreifen -->
+    <div class="strip-row" data-strip-index="0">
+      <div class="row-label">Bruch&nbsp;1</div>
+
+      <div class="strip-and-info">
+        <div class="fraction-strip" data-strip-index="0" aria-label="Bruchstreifen 1">
+          <div class="color-layer"></div>
+          <div class="grid-layer"></div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button class="step-btn" data-dir="-1"
+                aria-label="Weniger Unterteilungen für Bruch 1">◀</button>
+        <input class="division-input" type="number" min="1" max="30" value="1"
+               aria-label="Anzahl der Unterteilungen für Bruch 1">
+        <button class="step-btn" data-dir="1"
+                aria-label="Mehr Unterteilungen für Bruch 1">▶</button>
+      </div>
+    </div>
+
+    <!-- Zweiter Bruchstreifen -->
+    <div class="strip-row" data-strip-index="1">
+      <div class="row-label">Bruch&nbsp;2</div>
+
+      <div class="strip-and-info">
+        <div class="fraction-strip" data-strip-index="1" aria-label="Bruchstreifen 2">
+          <div class="color-layer"></div>
+          <div class="grid-layer"></div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button class="step-btn" data-dir="-1"
+                aria-label="Weniger Unterteilungen für Bruch 2">◀</button>
+        <input class="division-input" type="number" min="1" max="30" value="1"
+               aria-label="Anzahl der Unterteilungen für Bruch 2">
+        <button class="step-btn" data-dir="1"
+                aria-label="Mehr Unterteilungen für Bruch 2">▶</button>
+      </div>
+    </div>
+
+    <!-- Neuer Hinweistext / Vorgehensweise -->
+    <p class="hint">
+Vorgehensweise:
+1. Beide Bruchstreifen jeweils zur Bruchzahl passend einteilen
+2. Flächen markieren durch Antippen
+3. Die Einteilung verändern, um den gleichen Anteil in anderen Unterteilungen darzustellen.
+    </p>
+  </div>
+
+  <script>
+    (function () {
+      const MIN_DIV = 1;
+      const MAX_DIV = 30;
+      const EPS = 1e-6;
+
+      // Zustand für beide Bruchstreifen
+      const strips = [
+        { divisions: 1, intervals: [] }, // Bruch 1
+        { divisions: 1, intervals: [] }  // Bruch 2
+      ];
+
+      function clamp(value, min, max) {
+        return Math.min(max, Math.max(min, value));
+      }
+
+      // Fügt ein Intervall [start,end] hinzu (Vereinigung, Intervalle bleiben sortiert & disjunkt)
+      function addInterval(intervals, start, end) {
+        start = Math.max(0, start);
+        end = Math.min(1, end);
+        if (end - start <= EPS) return intervals.slice();
+
+        const result = [];
+        let newStart = start;
+        let newEnd = end;
+        let inserted = false;
+
+        for (const seg of intervals) {
+          if (seg.end < newStart - EPS) {
+            // komplett links
+            result.push(seg);
+          } else if (seg.start > newEnd + EPS) {
+            // komplett rechts
+            if (!inserted) {
+              result.push({ start: newStart, end: newEnd });
+              inserted = true;
+            }
+            result.push(seg);
+          } else {
+            // Überlappung: zusammenfassen
+            newStart = Math.min(newStart, seg.start);
+            newEnd = Math.max(newEnd, seg.end);
+          }
+        }
+
+        if (!inserted) {
+          result.push({ start: newStart, end: newEnd });
+        }
+        return result;
+      }
+
+      // Zieht ein Intervall [start,end] ab (Farbbereich wird ggf. gesplittet)
+      function subtractInterval(intervals, start, end) {
+        const result = [];
+        for (const seg of intervals) {
+          if (seg.end <= start + EPS || seg.start >= end - EPS) {
+            // keine Überlappung
+            result.push(seg);
+          } else {
+            // Überlappung, ggf. links/rechts Reststücke behalten
+            if (seg.start < start - EPS) {
+              const left = { start: seg.start, end: Math.max(seg.start, start) };
+              if (left.end - left.start > EPS) result.push(left);
+            }
+            if (seg.end > end + EPS) {
+              const right = { start: Math.min(seg.end, end), end: seg.end };
+              if (right.end - right.start > EPS) result.push(right);
+            }
+          }
+        }
+        return result;
+      }
+
+      // Wie viel des Intervalls [start,end] ist aktuell gefärbt? (0..1)
+      function coverage(intervals, start, end) {
+        let covered = 0;
+        for (const seg of intervals) {
+          const s = Math.max(seg.start, start);
+          const e = Math.min(seg.end, end);
+          if (e > s) covered += e - s;
+        }
+        const length = end - start;
+        return length > 0 ? covered / length : 0;
+      }
+
+      // Zeichnet einen Bruchstreifen komplett neu
+      function renderStrip(index) {
+        const state = strips[index];
+        const row = document.querySelector(`.strip-row[data-strip-index="${index}"]`);
+        if (!row) return;
+
+        const gridLayer   = row.querySelector('.grid-layer');
+        const colorLayer  = row.querySelector('.color-layer');
+        const input       = row.querySelector('.division-input');
+
+        // Eingabefeld synchronisieren
+        if (input) {
+          input.value = state.divisions;
+        }
+
+        // Gitterlinien neu zeichnen
+        if (gridLayer) {
+          gridLayer.innerHTML = '';
+          const n = state.divisions;
+          for (let i = 1; i < n; i++) {
+            const line = document.createElement('div');
+            line.className = 'grid-line';
+            line.style.left = (i / n * 100) + '%';
+            gridLayer.appendChild(line);
+          }
+        }
+
+        // Farbflächen neu zeichnen
+        if (colorLayer) {
+          colorLayer.innerHTML = '';
+          for (const seg of state.intervals) {
+            const block = document.createElement('div');
+            block.className = 'color-block';
+            block.style.left = (seg.start * 100) + '%';
+            block.style.width = ((seg.end - seg.start) * 100) + '%';
+            colorLayer.appendChild(block);
+          }
+        }
+      }
+
+      // Klick auf einen Bruchstreifen: Teilfläche ein-/ausfärben
+      function handleStripClick(event) {
+        const stripEl = event.currentTarget;
+        const index = parseInt(stripEl.dataset.stripIndex, 10);
+        const state = strips[index];
+
+        const rect = stripEl.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const ratioRaw = x / rect.width;
+        const ratio = Math.min(Math.max(ratioRaw, 0), 1 - 1e-9);
+
+        const n = state.divisions;
+        let cellIndex = Math.floor(ratio * n);
+        if (cellIndex < 0) cellIndex = 0;
+        if (cellIndex >= n) cellIndex = n - 1;
+
+        const start = cellIndex / n;
+        const end = (cellIndex + 1) / n;
+
+        const cov = coverage(state.intervals, start, end);
+
+        // Logik:
+        // - wenn in diesem Feld bereits Farbe ist (voll oder teilweise), entferne sie dort
+        // - sonst füge Farbe in diesem Feld hinzu
+        if (cov > 0.01) {
+          state.intervals = subtractInterval(state.intervals, start, end);
+        } else {
+          state.intervals = addInterval(state.intervals, start, end);
+        }
+
+        renderStrip(index);
+      }
+
+      // Initialisierung aller DOM-Elemente und Events
+      function init() {
+        document.querySelectorAll('.strip-row').forEach(row => {
+          const index = parseInt(row.dataset.stripIndex, 10);
+          const stripEl = row.querySelector('.fraction-strip');
+          const input   = row.querySelector('.division-input');
+          const buttons = row.querySelectorAll('.step-btn');
+
+          if (stripEl) {
+            stripEl.addEventListener('click', handleStripClick);
+          }
+
+          if (input) {
+            input.addEventListener('change', () => {
+              let val = parseInt(input.value, 10);
+              if (Number.isNaN(val)) {
+                val = strips[index].divisions;
+              }
+              val = clamp(val, MIN_DIV, MAX_DIV);
+              strips[index].divisions = val;
+              renderStrip(index);
+            });
+          }
+
+          buttons.forEach(btn => {
+            btn.addEventListener('click', () => {
+              const dir = parseInt(btn.dataset.dir, 10) || 0;
+              let val = strips[index].divisions + dir;
+              val = clamp(val, MIN_DIV, MAX_DIV);
+              strips[index].divisions = val;
+              renderStrip(index);
+            });
+          });
+
+          // Anfangszustand zeichnen
+          renderStrip(index);
+        });
+      }
+
+      document.addEventListener('DOMContentLoaded', init);
+    })();
+  </script>
+</body>
+</html>
